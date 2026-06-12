@@ -16,6 +16,11 @@ def export_forecasts(df):
 
     output_file = OUTPUT_PATH / "Tahminlenen_Talep.xlsx"
 
+    # Tarih sütununu datetime formatına çevir — Excel serial nömrəsi görünməsin
+    df = df.copy()
+    if "Tarih" in df.columns:
+        df["Tarih"] = pd.to_datetime(df["Tarih"]).dt.strftime("%Y-%m-%d")
+
     # Export Excel
     df.to_excel(output_file, index=False)
 
