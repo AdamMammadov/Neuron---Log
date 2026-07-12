@@ -110,6 +110,11 @@ def create_advanced_features(df):
     """
     Advanced AI feature engineering
     for lower MAE forecasting
+
+    Gelişmiş Çözüm Aşaması — Yeni Özellikler:
+    - is_morning: 09:00=1, 17:00=0
+    - Saat bazlı lag features: hər saat ayrıca qruplanır
+    - Route+Saat target encoding əlavə edildi
     """
 
     df = df.copy()
@@ -118,11 +123,29 @@ def create_advanced_features(df):
         df["Tarih"]
     )
 
+    # =========================================
+    # SAAT FEATURE — YENİ
+    # 09:00 tələbi ilə 17:00 tələbi fərqlidir.
+    # is_morning=1 → sabah, is_morning=0 → axşam
+    # =========================================
+
+    if "Saat" in df.columns:
+        df["is_morning"] = (
+            df["Saat"]
+            .astype(str)
+            .str.startswith("9")
+            .astype(int)
+        )
+    else:
+        df["is_morning"] = 1
+
+    # Saat bazlı sort — saat feature-ı lag-lara düzgün tətbiq olunsun
     df = df.sort_values(
         by=[
             "Çıkış Transfer Merkezi",
             "Varış Transfer Merkezi",
-            "Tarih"
+            "Tarih",
+            "is_morning"
         ]
     )
 
@@ -293,8 +316,22 @@ def create_advanced_features(df):
 
     # =========================================
     # GROUP DEFINITIONS
+    # Saat bazlı qruplandırma — YENİ
+    # Hər route + saat kombinasiyası ayrıca qruplanır
+    # Bu 09:00 lag-larının 17:00-a qarışmasının
+    # qarşısını alır
     # =========================================
 
+    # Saat bazlı group (is_morning ilə)
+    group_cols_saat = [
+        "Çıkış Transfer Merkezi",
+        "Varış Transfer Merkezi",
+        "is_morning"
+    ]
+
+    group_saat = df.groupby(group_cols_saat)["Toplam Desi"]
+
+    # Köhnə route group (geriyə uyğunluq üçün saxlanır)
     group = df.groupby(
         [
             "Çıkış Transfer Merkezi",
@@ -303,61 +340,65 @@ def create_advanced_features(df):
     )["Toplam Desi"]
 
     # =========================================
-    # ADVANCED LAG FEATURES
+    # ADVANCED LAG FEATURES — SAAT BAZLI
+    # lag_1 = əvvəlki gün eyni saat tələbi
     # =========================================
 
     for lag in [1, 2, 3, 7, 14]:
 
         df[f"lag_{lag}"] = (
-            group.shift(lag)
+            group_saat.shift(lag)
         )
 
     # =========================================
-    # ADVANCED ROLLING FEATURES
+    # ADVANCED ROLLING FEATURES — SAAT BAZLI
     # =========================================
 
     for window in [3, 7, 14]:
 
         df[f"rolling_mean_{window}"] = (
-            group
+            group_saat
             .shift(1)
             .groupby(
                 [
                     df["Çıkış Transfer Merkezi"],
-                    df["Varış Transfer Merkezi"]
+                    df["Varış Transfer Merkezi"],
+                    df["is_morning"]
                 ]
             )
             .rolling(window)
             .mean()
-            .reset_index(level=[0,1], drop=True)
+            .reset_index(level=[0, 1, 2], drop=True)
         )
 
         df[f"rolling_std_{window}"] = (
-            group
+            group_saat
             .shift(1)
             .groupby(
                 [
                     df["Çıkış Transfer Merkezi"],
-                    df["Varış Transfer Merkezi"]
+                    df["Varış Transfer Merkezi"],
+                    df["is_morning"]
                 ]
             )
             .rolling(window)
             .std()
-            .reset_index(level=[0,1], drop=True)
+            .reset_index(level=[0, 1, 2], drop=True)
         )
 
         df[f"rolling_max_{window}"] = (
-            group
+            group_saat
             .shift(1)
             .groupby(
                 [
                     df["Çıkış Transfer Merkezi"],
-                    df["Varış Transfer Merkezi"]
+                    df["Varış Transfer Merkezi"],
+                    df["is_morning"]
                 ]
             )
             .rolling(window)
             .max()
-            .reset_index(level=[0,1], drop=True)
+            .reset_index(level=[0, 1, 2], drop=True)
         )
 
     # =========================================
