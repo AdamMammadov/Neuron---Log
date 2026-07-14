@@ -14,7 +14,16 @@ UTIL_TARGET      = 0.70
 
 
 def calc_handling_hours(desi):
-    return (desi * 0.01) / 60
+    """
+    Elleçleme süresi = desi * 0.01 dəqiqə.
+    YENİ QAYDA (Teknofest bildirimi): süre en yakın büyük tam
+    dəqiqəyə yuvarlanmalıdır (ceiling). Məsələn 55.2 dəqiqə → 56.
+    """
+    raw_minutes = desi * 0.01
+    if raw_minutes <= 0:
+        return 0.0
+    rounded_minutes = math.ceil(raw_minutes)
+    return rounded_minutes / 60
 
 
 def split_across_midnight(start_dt, duration_hours, amount):
@@ -51,11 +60,28 @@ def calc_sla_penalty(desi, delay_hours):
 
 
 def get_route_info(distance_lookup, origin, destination, vehicle_type):
+    """
+    YENİ QAYDA (Teknofest bildirimi): yolculuk süresi dəqiqəyə
+    çevrilib en yakın büyük tam dəqiqəyə yuvarlanmalıdır.
+    Nümunə: 0.92 saat = 55.2 dəqiqə -> 56 dəqiqə.
+    Yuvarlama BU FUNKSİYADA edilir ki, bütün çağırış yerlərinə
+    (dispatch, best_spot_vehicle, calc_delivery_dt) avtomatik
+    tətbiq olunsun — heç bir əlavə dəyişikliyə ehtiyac yoxdur.
+    """
     key = (origin, destination)
     row = distance_lookup.get(key, {})
     speed_col = VEHICLE_SPEED_COL.get(vehicle_type, "Tir_Suresi_Saat")
+    raw_hours = row.get(speed_col, 0)
+
+    if raw_hours and raw_hours > 0:
+        raw_minutes = raw_hours * 60
+        rounded_minutes = math.ceil(raw_minutes)
+        rounded_hours = rounded_minutes / 60
+    else:
+        rounded_hours = 0
+
     return (
-        row.get(speed_col, 0),
+        rounded_hours,
         row.get("mesafe_km", 0),
         row.get("hedef_teslim_gun", 1),
     )
@@ -141,8 +167,14 @@ def dispatch(results, vehicle_counter, vehicle_info, distance_lookup,
     """
 
     def hours_to_hhmm(h):
-        h = h % 24
-        return f"{int(h):02d}:{int((h % 1)*60):02d}"
+        # round() float dəqiqlik xətalarının (məsələn 55.999999
+        # dəqiqə) qarşısını alır — çıxış/varış saatı artıq
+        # get_route_info-dan yuvarlanmış gəldiyi üçün, burada
+        # yalnız təhlükəsizlik üçün əlavə edilir.
+        total_minutes = round(h * 60)
+        h_part = (total_minutes // 60) % 24
+        m_part = total_minutes % 60
+        return f"{int(h_part):02d}:{int(m_part):02d}"
 
     def get_remaining_handling(merkez, date_str):
         cap  = handling_capacity.get(merkez, float("inf"))

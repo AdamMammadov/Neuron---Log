@@ -17,19 +17,19 @@ Bu proje yalnızca bir tahmin modeli değildir — **her varsayımın test edild
 
 | Metric | Value |
 |---|---|
-| **Total Combined Cost** | **10,450,191.26 TL** |
+| **Total Combined Cost** | **10,460,052.36 TL** |
 | Baseline Cost (No Optimization) | 27,138,265.17 TL |
-| **Total AI Savings** | **16,688,073.91 TL (61.49%)** |
-| Unique Vehicles Deployed | 899 |
+| **Total AI Savings** | **16,678,212.81 TL (61.46%)** |
+| Unique Vehicles Deployed | 900 |
 | Vehicle Utilization | 64% |
 | SLA Compliance Rate | 95.04% (request-level, bkz. Metrik Şeffaflığı) |
 | **Tır Kapasitesi Violations** | **0** |
 | Global CV MAE | 450.92 |
 | Global CV WAPE (normalized) | 29.36% |
-| CO2 Emission | 142.66 tons |
-| CO2 Reduction (vs. no consolidation) | 77.78% |
-| High Risk Shipments | 1 / 6,333 (0.02%) |
-| System Runtime | ~308 seconds |
+| CO2 Emission | 142.75 tons |
+| CO2 Reduction (vs. no consolidation) | 77.76% |
+| High Risk Shipments | 1 / 6,332 (0.02%) |
+| System Runtime | ~362 seconds |
 
 > **Formula:** WAPE = CV MAE / Mean Demand × 100 (normalized, fair-comparison metric — bkz. Methodology)
 
@@ -169,6 +169,10 @@ Toplam Araç Maliyeti = Saatlik Kira × (Çıkış Elleçleme + Yolculuk + Varı
 
 Elleçleme süresi: 0.01 dk/desi (çıkış ve varış için ayrı ayrı hesaplanır, konsolidasyonda 2 kez sayılır). Kapasite aşımı nedeniyle oluşan bekleme süresi de kullanım süresine (dolayısıyla maliyete) dahildir — PDF'in kendi örneğine birebir uyumlu (500 dk → 560 dk, 1 saatlik bekleme senaryosu).
 
+### Süre Yuvarlama Kuralı
+
+Teknofest ekibinden gelen resmi bildirime göre: yolculuk ve elleçleme süreleri dakikaya çevrilip **en yakın büyük tam dakikaya** (ceiling) yuvarlanır. Örnek: 0.92 saat = 55.2 dakika → 56 dakika. Bu kural sistemde `get_route_info()` (yolculuk süresi) ve `calc_handling_hours()` (elleçleme süresi) fonksiyonlarında merkezi olarak uygulanır — tüm çağıran kod otomatik olarak yuvarlanmış değerlerle çalışır.
+
 ### Zorunlu Kiralık Dispatch
 
 Spesifikasyon gereği: *"Talep yetersiz olsa bile kiralık araçları çıkarmak zorundasınız."* Sistem, talep tahmininden bağımsız bir döngüyle her kiralık kaydı her gün dispatch eder.
@@ -211,8 +215,8 @@ Talep ID düzeltmesinin doğal bir sonucu olarak, Taşıma Planı artık **araç
 
 | Metrik | Anlamı |
 |---|---|
-| Shipment Count = 6,333 | Talep-ID seviyesinde satır sayısı (her müşteri talebi ayrı izlenir) |
-| Unique Vehicles = 899 | Fiziksel araç sayısı (`Araç ID` bazında benzersiz) |
+| Shipment Count = 6,332 | Talep-ID seviyesinde satır sayısı (her müşteri talebi ayrı izlenir) |
+| Unique Vehicles = 900 | Fiziksel araç sayısı (`Araç ID` bazında benzersiz) |
 | SLA Violations = 314 | Talep-ID seviyesinde ihlal sayısı — **daha dürüst bir metrik**, çünkü bir aracın gecikmesi artık ona yüklenen her müşteri talebi için ayrı ayrı raporlanır (önceki araç-seviyeli sayım: 24) |
 | SLA Cezası (TL) | **Değişmedi** — 223,309.75 TL, çünkü ceza tutarı matematiksel olarak talepler arasında orantılı bölünür; toplam sabit kalır |
 
